@@ -15,3 +15,4 @@ www.linkedin.com/in/ camilarodriguez5683
 
 Picture of Joey!
 
+![joey](https://github.com/user-attachments/assets/d710c24a-0a44-4ab5-abe0-a313156019d2)
