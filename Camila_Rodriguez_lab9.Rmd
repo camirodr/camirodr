@@ -1,0 +1,280 @@
+---
+title: "Camila Rodriguez Lab9, ENVIRON 710"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+## Setup
+
+```{r message=FALSE, warning=FALSE}
+#install.packages("DHARMa")
+#install.packages("gtsummary")
+library(gtsummary)
+
+library(DHARMa)
+library(here)
+library(tidyverse)
+
+lizards<- read.csv('jrn_lizard.csv')
+
+lizards<- lizards %>% filter(spp== "UTST")
+
+#unique(lizards$zone)
+```
+
+### Research Question: Do snout to vent length, sex, and vegetation zone at time of capture significantly predict if a lizard tail is recorded as whole?
+
+## Data Visualization
+
+```{r}
+
+# Plot 1: Bar Plot of Lizards by Zone
+p1 <- ggplot(lizards, aes(x = zone)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  labs(title = "Distribution of Lizards by zones", x = "Zone", y = "Frequency")
+
+# Plot 2: Sex Distribution
+#filter out N/A sexes 
+
+lizards <- lizards %>%
+  filter(sex %in% c("F", "M", "J") & !is.na(sex))
+
+
+p2 <- ggplot(lizards, aes(x = sex)) +
+  geom_bar(binwidth = 1, fill = "lightgreen", color = "black") +
+  labs(title = "Distribution of Lizards by Sex ", x = "Sex", y = "Frequency")
+
+# Plot 3: Snout to vent length
+p3 <- ggplot(lizards, aes(x = SV_length)) +
+  geom_histogram(fill = "coral", color = "black") +
+  labs(title = "Lizard distribution of snout to vent lengths", x = "Snout to Vent Length ", y = "Number of Observations") 
+#left skewed
+
+p4<- ggplot(lizards, aes(x=zone, y=SV_length))+ geom_boxplot()
+
+p5<- ggplot(lizards, aes(x=sex, y=SV_length))+ geom_boxplot()
+
+
+
+# View plots and analyze possible correlations
+p1
+p2
+p3
+p4
+p5
+
+```
+
+## Fit Regresison
+
+```{r}
+
+#convert necessary data into factors for GLM
+
+lizards$sex <- factor(lizards$sex, levels= c("J", "F", "M"))
+#unique(lizards$sex)
+
+lizards$zone <- factor(lizards$zone, levels= c("C", "G", "M", "T"))
+#unique(lizards$zone)
+
+#filter out NAs from tails, make into factor 
+lizards <- lizards %>%
+  filter(tail %in% c("B", "W")) %>%
+  mutate(tail = factor(tail, levels = c("B", "W")))
+
+tail_model<- glm(tail~ sex + zone+ SV_length, data= lizards, family= "binomial")
+```
+
+## Evaluate Model Diagnostics
+
+The results of a logistic regression suggest that the log-odds of having a tail are significantly lower in zone G (β = -0.57, p = 0.001) and zone T (β = -0.40, p = 0.025) relative to the reference zone (C). There was also a significant negative relationship between SV length and the log-odds of having a tail (β = -0.045, p \< 0.001). Although zone M had a negative coefficient (β = -0.30), this effect was marginally non-significant (p = 0.063). Neither sex (female: β = -0.20, p = 0.32; male: β = -0.14, p = 0.53) was significantly associated with the log-odds of having a tail.
+
+```{r}
+summary(tail_model)
+simulateResiduals(tail_model) %>% plot()
+```
+
+##Probability Graphs for Zones and Sexes, Snout to Vent Length
+
+```{r}
+#graph for sex
+
+# Simulate SV length. Range is 0-87 so we choose 90 to round, and 3 (for three sexes)
+SV_length_vector <- rep(seq(from = 0, to = 90), 3)
+
+# Simulate sex data repeating "F", "J", "M"
+sex_vector <- rep(c("F", "J", "M"), each = length(seq(from = 0, to = 90)))
+
+# Keep zone "C" constant
+zone_vector <- rep("C", length(SV_length_vector))
+
+# Combine into data frame
+data_pred_sex <- data.frame(SV_length_vector, zone_vector, sex_vector)
+colnames(data_pred_sex) <- c("SV_length", "zone", "sex")
+
+# Predict using model
+prediction_sex<- predict(tail_model,
+                      newdata = data_pred_sex,
+                      type = "response",
+                      se.fit = TRUE)
+
+# Create final data frame with predictions
+data_fig <- data.frame(data_pred_sex,
+                       prediction_sex$fit,
+                       prediction_sex$se.fit)
+
+# Rename columns
+colnames(data_fig) <- c("SV_length", "zone", "sex", "probability", "se")
+
+# Graph probab. of a lizard tail being whole (W) across lizard lengths,  colored by sex
+ggplot(data_fig, aes(x = SV_length, y = probability)) +
+  geom_line(aes(color = sex)) +
+  geom_ribbon(aes(ymin = probability - se,
+                  ymax = probability + se,
+                  fill = sex), alpha = 0.4) +
+  labs(x = "SV Length",
+       y = "Probability of Having Whole Tail",
+       color = "Sex",
+       fill = "Sex") +
+  theme_bw() +
+  ggtitle("Probability of Whole Tail with Change in Lizard Length by Sex")
+
+## ------Repeat for zone------
+
+# Simulate SV length
+SV_length_vector_2 <- rep(seq(from = 0, to = 90), 4)
+
+# Keep sex constant at "J"
+sex_vector_2 <- rep("J", length(SV_length_vector_2))
+
+# Simulate zone data repeating "F", "J", "M"
+zone_vector_2 <- rep(c("C", "G", "M", "T"), each = length(seq(from = 0, to = 90)))
+
+# Combine into data frame
+data_pred_zone <- data.frame(SV_length_vector_2, zone_vector_2, sex_vector_2)
+
+#rename columns
+colnames(data_pred_zone) <- c("SV_length", "zone", "sex")
+
+# Predict using model
+prediction_zone <- predict(tail_model,
+                      newdata = data_pred_zone,
+                      type = "response",
+                      se.fit = TRUE)
+
+# Create final data frame with prediction results
+data_fig_2 <- data.frame(data_pred_zone,
+                       prediction_zone$fit,
+                       prediction_zone$se.fit)
+
+# Rename columns
+colnames(data_pred_zone) <- c("SV_length", "zone", "sex")
+
+colnames(data_fig_2) <- c("SV_length", "zone", "sex", "probability", "se")
+
+# Graph probability of a lizard tail being whole as lizard length increases, with lines colored by zone
+ggplot(data_fig_2, aes(x = SV_length, y = probability)) +
+  geom_line(aes(color = zone)) +
+  geom_ribbon(aes(ymin = probability - se,
+                  ymax = probability + se,
+                  fill = zone), alpha = 0.4) +
+  labs(x = "SV Length",
+       y = "Probability of Having Whole Tail",
+       fill = "zone") +
+  theme_bw() +
+  ggtitle("Probability of Whole Tail by Snout to Vent Length, by Zone")
+
+
+```
+
+## Poisson Regression
+
+```{r}
+#load data
+lizard_plant <-read.csv('jrn_lizard_npp.csv')
+
+# Research question: Do seasons and plant species cover significantly predict lizard counts?
+
+#Analyze data (plant cover % by type, and seasons)
+
+p4 <- ggplot(lizard_plant, aes(x = PRGL)) +
+  geom_histogram(fill = "coral", color = "black") +
+  labs(title = "Percent cover of PRGL plants", x = "Percent cover ", y = "Number of Observations") 
+
+p5 <- ggplot(lizard_plant, aes(x = BOER)) +
+  geom_histogram(fill = "coral", color = "black") +
+  labs(title = "Percent cover of BOER plants", x = "Percent cover ", y = "Number of Observations") 
+
+p6 <- ggplot(lizard_plant, aes(x = SCBR)) +
+  geom_histogram(fill = "coral", color = "black") +
+  labs(title = "Percent cover of SCBR plants", x = "Percent cover ", y = "Number of Observations") 
+
+p7 <- ggplot(lizard_plant, aes(x = LATR)) +
+  geom_histogram(fill = "coral", color = "black") +
+  labs(title = "Percent cover of LATR plants", x = "Percent cover ", y = "Number of Observations")
+
+p8 <- ggplot(lizard_plant, aes(x = season)) +
+  geom_bar(fill = "magenta3", color = "black") +
+  labs(title = "Lizard count by season", x = "Season ", y = "Number of Observations") 
+
+p9 <- ggplot(lizard_plant, aes(x = BOER, y = lizard_count))+
+  geom_point()
+
+p10<- ggplot(lizard_plant, aes(x = PRGL, y = lizard_count))+
+  geom_point()
+
+
+p11<- ggplot(lizard_plant, aes(x = SCBR, y = lizard_count))+
+  geom_point()
+
+p12<- ggplot(lizard_plant, aes(x = LATR, y = lizard_count))+
+  geom_point()
+
+p13<- ggplot(lizard_plant, aes(x = season, y = lizard_count, color=season))+
+  geom_point()
+
+#plot
+p4
+p5
+p6
+p7
+p8
+p9
+p10
+p11
+p12
+p13
+
+#LATR and SCBR seem to have stronger correlation than
+```
+
+## Analysis of Regression
+
+```{r}
+#convert necessary data in factors for GLM
+#unique(lizard_plant$season)
+
+lizard_plant$season<- factor(lizard_plant$season, levels = c("F", "S", "W"))
+
+lizard_plant_model<- glm(lizard_count~ season+LATR+SCBR, data=lizard_plant, family= 'poisson')
+                           
+summary(lizard_plant_model)
+plot(lizard_plant_model)
+tbl_regression((lizard_plant_model))
+
+#remove outliers and rerun GLM
+
+lizard_plant2<-lizard_plant[-c(32,47)]
+                            
+lizard_plant_model2<- glm(lizard_count~ season+ LATR+SCBR, data=lizard_plant2, family= 'poisson')                  
+
+summary(lizard_plant_model2)
+plot(lizard_plant_model2)
+tbl_regression((lizard_plant_model2))
+                             
+```
+
+## Discussion of Regression
+
+The results of a Poisson regression suggest that lizard counts were significantly lower in summer relative to the reference season (β = -0.80, p \< 0.001), while counts in winter did not differ significantly (β = -0.03, p = 0.62). Among the two plant species analyzed, SCBR was associated with significantly higher lizard counts (β = 0.44, p \< 0.001), whereas LATR did not have a significant effect on lizard counts (β = -0.04, p = 0.22). (Note: these coefficients are for estimation of log-transformed counts). I removed the observations on rows 32 and 47 since they appeared as outliers in the QQ plots and could skew data inaccurately (i.e it would skew data to show higher correlation of lizard count and tree species when the relationship is in reality weaker).

@@ -1,16 +1,17 @@
-## Hi there 👋
 
 <!--
-**camirodr/camirodr** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+Welcome to my repository!
 
-Here are some ideas to get you started:
+Some fun facts about me:
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
+I have a rescue dog (Joey) who is a mixed terrier
+I love to bake
+I enjoy biking and skating
+I am learning how to take care of indoor plants and plan to acquire  many plants for my apartment next year!
 -->
+
+Linkedin Profile
+www.linkedin.com/in/ camilarodriguez5683
+
+Picture of Joey!
+
